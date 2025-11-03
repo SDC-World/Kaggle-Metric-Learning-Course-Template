@@ -2,21 +2,21 @@
 #
 # Это тестовый конфиг для проверки того, что весь пайплайн (train.py)
 # работает правильно, от загрузки конфига до запуска цикла обучения.
-# Он использует простые заглушки вместо реальных моделей и данных.
 
 general:
-  experiment_name: "hello_world_test" # Название папки для сохранения результатов
-  seed: 42                           # Seed для воспроизводимости
+  experiment_name: "hello_world_test"
+  seed: 42
 
 data:
-  # Пути к данным здесь - плейсхолдеры, так как DummyDataset их не использует.
+  is_dummy: true
+
+  # Остальные пути теперь действительно просто плейсхолдеры
   path: "data/dummy/"
   train_file: "dummy_train.csv"
   
-  # Параметры для создания фолдов (должны быть здесь для консистентности)
   fold_strategy: "StratifiedKFold"
   group_col: "group_id"
-  n_splits: 2 # Для теста достаточно 2 фолдов
+  n_splits: 2
 
 model:
   name: "dummy_model"
@@ -24,6 +24,6 @@ model:
   embedding_size: 512
 
 train_params:
-  epochs: 1            # Всего одна эпоха для быстрой проверки
-  batch_size: 4        # Маленький батч для минимального использования памяти
+  epochs: 1
+  batch_size: 4
   learning_rate: 0.001

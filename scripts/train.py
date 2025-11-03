@@ -71,14 +71,38 @@ def main():
     print(f"Output will be saved to {output_dir}")
 
     # 5. Загрузка данных и фолдов
-    # ВАЖНО: предполагается, что файл с фолдами уже создан!
-    folds_path = os.path.join(config['data']['path'], f"folds_{config['general']['experiment_name']}.csv")
-    if not os.path.exists(folds_path):
-        print(f"❌ Error: Folds file not found at {folds_path}")
-        print("Please run the fold creation script first (реализуйте его в src/data/folds.py).")
-        return
+    # Проверяем, запущен ли скрипт в тестовом режиме
+    if config['data'].get('is_dummy', False):
+        print("🚀 Running in DUMMY mode for a quick test.")
+        # Создаем фейковый DataFrame прямо в памяти
+        num_dummy_samples = 100 # Например, 100 сэмплов
+        df_folds = pd.DataFrame({
+            'id': range(num_dummy_samples),
+            'target': np.random.randint(0, 2, num_dummy_samples)
+        })
+        # Генерируем фолды "на лету"
+        df_folds['fold'] = np.arange(num_dummy_samples) % config['data']['n_splits']
+        
+        # В Dummy-режиме ID для OOF-файла не так важен
+        global MATCHING_ID_COLUMN 
+        MATCHING_ID_COLUMN = 'id'
 
-    df_folds = pd.read_csv(folds_path)
+    else:
+        print("🚀 Running in REAL mode.")
+        # ВАЖНО: предполагается, что файл с фолдами уже создан!
+        folds_path = os.path.join(config['data']['path'], f"folds_{config['general']['experiment_name']}.csv")
+        if not os.path.exists(folds_path):
+            print(f"❌ Error: Folds file not found at {folds_path}")
+            print("Please run the fold creation script first (реализуйте его в src/data/folds.py).")
+            return
+        
+        df_folds = pd.read_csv(folds_path)
+        
+        # Определяем колонку ID из конфига для OOF
+        global MATCHING_ID_COLUMN
+        MATCHING_ID_COLUMN = config['data']['matching_id_column'] # Убедитесь, что добавили это в реальные конфиги
+
+    # Инициализируем массив для OOF-предсказаний
     oof_predictions = np.zeros(len(df_folds))
 
     # 6. Основной цикл обучения по фолдам
