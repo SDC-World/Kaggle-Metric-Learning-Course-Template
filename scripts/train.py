@@ -84,8 +84,7 @@ def main():
         df_folds['fold'] = np.arange(num_dummy_samples) % config['data']['n_splits']
         
         # В Dummy-режиме ID для OOF-файла не так важен
-        global MATCHING_ID_COLUMN 
-        MATCHING_ID_COLUMN = 'id'
+        matching_id_column = 'id'
 
     else:
         print("🚀 Running in REAL mode.")
@@ -97,10 +96,9 @@ def main():
             return
         
         df_folds = pd.read_csv(folds_path)
-        
+
         # Определяем колонку ID из конфига для OOF
-        global MATCHING_ID_COLUMN
-        MATCHING_ID_COLUMN = config['data']['matching_id_column'] # Убедитесь, что добавили это в реальные конфиги
+        matching_id_column = config['data']['matching_id_column'] # Убедитесь, что добавили это в реальные конфиги
 
     # Инициализируем массив для OOF-предсказаний
     oof_predictions = np.zeros(len(df_folds))
@@ -131,17 +129,17 @@ def main():
         for epoch in range(config['train_params']['epochs']):
             model.train()
             train_loss = 0
-            
+
             # --- Training Phase ---
             for inputs, labels in tqdm(train_loader, desc=f"Epoch {epoch+1}/{config['train_params']['epochs']} - Train"):
                 inputs, labels = inputs.to(device), labels.to(device).float().unsqueeze(1)
-                
+
                 optimizer.zero_grad()
                 outputs = model(inputs)
                 loss = criterion(outputs, labels)
                 loss.backward()
                 optimizer.step()
-                
+
                 train_loss += loss.item()
 
             # --- Validation Phase ---
@@ -158,7 +156,7 @@ def main():
 
             train_loss /= len(train_loader)
             valid_loss /= len(valid_loader)
-            
+
             print(f"Epoch {epoch+1}: Train Loss = {train_loss:.4f}, Valid Loss = {valid_loss:.4f}")
 
             # Сохранение лучшей модели
@@ -166,13 +164,14 @@ def main():
                 best_valid_loss = valid_loss
                 torch.save(model.state_dict(), os.path.join(output_dir, f"model_best_fold_{fold}.pth"))
                 print(f"✨ Model saved with best validation loss: {best_valid_loss:.4f}")
-                
+
                 # Сохраняем предсказания лучшей модели
-                oof_predictions[valid_df.index] = np.concatenate(fold_preds).flatten()
+                oof_predictions[fold * len(valid_df):(fold + 1) * len(valid_df)] = np.concatenate(fold_preds).flatten()
 
     # 7. Сохранение OOF предсказаний
+    matching_id_column = 'id' if config['data'].get('is_dummy', False) else config['data']['matching_id_column']
     oof_df = pd.DataFrame({
-        'id': df_folds[MATCHING_ID_COLUMN], # Убедитесь, что эта колонка есть в конфиге/данных
+        'id': df_folds[matching_id_column], # Убедитесь, что эта колонка есть в конфиге/данных
         'prediction': oof_predictions
     })
     oof_path = os.path.join(output_dir, "oof_predictions.csv")
